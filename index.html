@@ -1,11 +1,56 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Multicamadas</title>
 </head>
+
 <body>
+    <label for="arquivo-csv">Carregar arquivo CSV:</label>
+    <input type="file" required>
+
+    <label for="qtde-camada-oculto">Quantidade de neurônios na camada oculta:</label>
+    <input type="number" id="qtde-camada-oculto" name="qtde-camada-oculto" min="1" required>
+    <br><br>
+
+    <!-- Valor do erro mínimo -->
+    <label for="erro-min">Valor do erro mínimo (0 a 1):</label>
+    <input type="number" id="erro-min" name="erro-min" min="0" max="1" step="any" required>
+    <br><br>
+
+    <!-- Número de iterações -->
+    <label for="qtde-iteracoes">Número de iterações:</label>
+    <input type="number" id="qtde-iteracoes" name="qtde-iteracoes" min="1" required>
+    <br><br>
+
+    <!-- Radio para escolher entre número de iterações ou erro mínimo -->
+    <label>Critério de parada:</label>
+    <input type="radio" id="tipo-de-treino" name="criterio-parada" value="iteracoes" required>
+    <label for="tipo-de-treino">Número de iterações</label>
+    <input type="radio" id="erro-minimo" name="criterio-parada" value="erroMinimo">
+    <label for="erro-minimo">Erro mínimo</label>
+    <br><br>
+
+    <!-- Valor da taxa de aprendizado -->
+    <label for="taxa-de-aprendizado">Valor da taxa de aprendizado (0 a 1):</label>
+    <input type="number" id="taxa-de-aprendizado" name="taxa-de-aprendizado" min="0" max="1" step="any" required>
+    <br><br>
+
+    <!-- Radio para escolher a função de transferência -->
+    <label>Função de ativação:</label>
+    <input type="radio" id="linear" name="funcao-ativacao" value="linear" required>
+    <label for="linear'">Linear</label>
+    <input type="radio" id="logistica" name="funcao-ativacao" value="logistica">
+    <label for="logistica">Logística</label>
+    <input type="radio" id="tangente-hiperbolica" name="funcao-ativacao" value="tangentehiperbolica">
+    <label for="tangente-hiperbolica">Hiperbólica</label>
+    <br><br>
+
+    <!-- Submit button -->
+    <button type="submit">Enviar Configuração</button>
     <script src="./script.js"></script>
 </body>
+
 </html>
