@@ -122,6 +122,20 @@ let entradasTreinamento = [];
 let saidasEsperadas = [];
 let classesUnicas = [];
 let redeConfigurada = false;
+let chart = null;
+let startTime = null;
+let errorHistory = [];
+let progressType = 'iteracoes';
+
+// Adicionar listener para mudança no critério de parada
+document.querySelectorAll('input[name="criterio-parada"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+        progressType = e.target.value;
+        // Atualizar label da barra de progresso
+        const progressLabel = document.getElementById('progress-label');
+        progressLabel.textContent = progressType === 'iteracoes' ? 'Progresso das Iterações' : 'Progresso do Erro';
+    });
+});
 
 // Manipulador para o evento de carregamento do arquivo
 const fileInput = document.querySelector('input[type="file"]');
@@ -145,68 +159,65 @@ fileInput.addEventListener('change', async (event) => {
 });
 
 // recuperacao dos dados
-document.querySelector('button[type="submit"]').addEventListener('click', (event) => {
+document.querySelector('button[type="submit"]').addEventListener('click', async (event) => {
     event.preventDefault();
 
-    // Recuperar os dados do formulário
-    const fileInput = document.querySelector('input[type="file"]');
-    const neurons = document.getElementById('qtde-camada-oculto').value;
-    const minError = document.getElementById('erro-min').value;
-    const iterations = document.getElementById('qtde-iteracoes').value;
-    const stopCriterion = document.querySelector('input[name="criterio-parada"]:checked');
-    const learningRate = document.getElementById('taxa-de-aprendizado').value;
-    const activationFunction = document.querySelector('input[name="funcao-ativacao"]:checked');
-
-    // Validação do arquivo CSV
-    const file = fileInput.files[0];
-    if (!file) {
-        alert("Por favor, carregue um arquivo CSV.");
-        return;
-    }
-    if (!file.name.endsWith('.csv')) {
-        alert("O arquivo deve ser do tipo .csv!");
-        return;
-    }
-
-    // Validação dos campos numéricos
-    if (neurons <= 0) {
-        alert("A quantidade de neurônios na camada oculta deve ser maior que zero.");
-        return;
-    }
-
-    if (minError < 0 || minError > 1) {
-        alert("O valor do erro mínimo deve estar entre 0 e 1.");
-        return;
-    }
-
-    if (iterations <= 0) {
-        alert("O número de iterações deve ser maior que zero.");
-        return;
-    }
-
-    if (!stopCriterion) {
-        alert("Por favor, selecione um critério de parada.");
-        return;
-    }
-
-    if (learningRate < 0 || learningRate > 1) {
-        alert("A taxa de aprendizado deve estar entre 0 e 1.");
-        return;
-    }
-
-    if (!activationFunction) {
-        alert("Por favor, selecione uma função de ativação.");
-        return;
-    }
-
-    // Reconfigurar a rede com os novos parâmetros
     try {
-        // Configurar a rede
-        const numParameters = camadaDeEntrada.length; // Preservar o número de parâmetros
+        // Reset de todas as variáveis globais
+        errorHistory = [];
+        startTime = null;
+        redeConfigurada = false;
         
-        // Recriar as camadas com os novos parâmetros
+        // Reset da visualização
+        document.getElementById('current-iteration').textContent = '0';
+        document.getElementById('current-error').textContent = '0.000000';
+        document.getElementById('progress-rate').textContent = '0%';
+        document.getElementById('elapsed-time').textContent = '00:00';
+        document.getElementById('progress-bar').style.width = '0%';
+        
+        // Validações...
+        const neurons = parseInt(document.getElementById('qtde-camada-oculto').value);
+        const minError = parseFloat(document.getElementById('erro-min').value);
+        const iterations = parseInt(document.getElementById('qtde-iteracoes').value);
+        const stopCriterion = document.querySelector('input[name="criterio-parada"]:checked');
+        const learningRate = parseFloat(document.getElementById('taxa-de-aprendizado').value);
+        const activationFunction = document.querySelector('input[name="funcao-ativacao"]:checked');
+
+        // Validações mais rigorosas
+        if (!entradasTreinamento.length || !camadaDeEntrada.length) {
+            throw new Error("Por favor, carregue um arquivo CSV válido primeiro.");
+        }
+
+        if (isNaN(neurons) || neurons <= 0) {
+            throw new Error("A quantidade de neurônios deve ser um número maior que zero.");
+        }
+
+        if (isNaN(minError) || minError < 0 || minError > 1) {
+            throw new Error("O erro mínimo deve estar entre 0 e 1.");
+        }
+
+        if (isNaN(iterations) || iterations <= 0) {
+            throw new Error("O número de iterações deve ser maior que zero.");
+        }
+
+        if (!stopCriterion) {
+            throw new Error("Selecione um critério de parada.");
+        }
+
+        if (isNaN(learningRate) || learningRate <= 0 || learningRate > 1) {
+            throw new Error("A taxa de aprendizado deve estar entre 0 e 1.");
+        }
+
+        if (!activationFunction) {
+            throw new Error("Selecione uma função de ativação.");
+        }
+
+        // Reconfigurar a rede
+        const numParameters = camadaDeEntrada.length;
+        
+        // Recriar as camadas
         camadaDeEntrada = criarCamadaDeNeuronios(numParameters, 'linear');
-        camadaOculta = criarCamadaDeNeuronios(parseInt(neurons), activationFunction.value);
+        camadaOculta = criarCamadaDeNeuronios(neurons, activationFunction.value);
         camadaDeSaida = criarCamadaDeNeuronios(classesUnicas.length, 'logistica');
 
         // Recriar conexões
@@ -219,93 +230,90 @@ document.querySelector('button[type="submit"]').addEventListener('click', (event
 
         redeConfigurada = true;
         
-        // Iniciar treinamento com a rede reconfigurada
-        treinarRede();
+        // Desabilitar o formulário durante o treinamento
+        const form = document.getElementById('neural-network-form');
+        const inputs = form.querySelectorAll('input, button');
+        inputs.forEach(input => input.disabled = true);
+
+        // Iniciar treinamento
+        await treinarRede();
+
+        // Reabilitar o formulário após o treinamento
+        inputs.forEach(input => input.disabled = false);
+
     } catch (error) {
-        alert(`Erro ao reconfigurar a rede: ${error.message}`);
+        alert(error.message);
         redeConfigurada = false;
     }
 });
 
 function processCSV(content) {
-    const lines = content.split('\n')
-        .filter(line => line.trim() !== '')
-        .map(line => line.trim().replace('\r', '')); // Remover \r para compatibilidade
-
-    if (lines.length < 2) {
-        alert("O arquivo CSV deve conter ao menos um cabeçalho e uma linha de dados.");
-        return;
-    }
-
-    // Primeira linha: Cabeçalho
-    const header = lines[0].split(',');
-    const numParameters = header.length - 1;
-
-    // Contar e mapear classes únicas
-    const classesSet = new Set();
-    for (let i = 1; i < lines.length; i++) {
-        const row = lines[i].split(',');
-        const classValue = row[row.length - 1].trim();
-        classesSet.add(classValue);
-    }
-    
-    classesUnicas = Array.from(classesSet);
-    
-    alert(`O arquivo contém ${numParameters} parâmetros e ${classesUnicas.length} classes diferentes.`);
-
-    // Validar os valores do formulário antes de configurar a rede
-    const quantidadeNeuroniosOcultos = parseInt(document.getElementById('qtde-camada-oculto').value);
-    const funcaoAtivacaoSelecionada = document.querySelector('input[name="funcao-ativacao"]:checked');
-    
-    if (!quantidadeNeuroniosOcultos || quantidadeNeuroniosOcultos <= 0) {
-        alert("Por favor, insira uma quantidade válida de neurônios na camada oculta.");
-        return;
-    }
-
-    if (!funcaoAtivacaoSelecionada) {
-        alert("Por favor, selecione uma função de ativação.");
-        return;
-    }
-
-    const funcaoAtivacao = funcaoAtivacaoSelecionada.value;
-
     try {
-        // Configurar a rede
-        camadaDeEntrada = criarCamadaDeNeuronios(numParameters, 'linear');
-        camadaOculta = criarCamadaDeNeuronios(quantidadeNeuroniosOcultos, funcaoAtivacao);
-        camadaDeSaida = criarCamadaDeNeuronios(classesUnicas.length, 'logistica');
+        const lines = content.split('\n')
+            .filter(line => line.trim() !== '')
+            .map(line => line.trim().replace('\r', '')); 
 
-        // Criar conexões
-        camadaOculta.forEach(neuronio => {
-            camadaDeEntrada.forEach(entrada => neuronio.adicionarEntrada(entrada));
-        });
-        camadaDeSaida.forEach(neuronio => {
-            camadaOculta.forEach(oculto => neuronio.adicionarEntrada(oculto));
-        });
+        if (lines.length < 2) {
+            throw new Error("O arquivo CSV deve conter ao menos um cabeçalho e uma linha de dados.");
+        }
 
-        // Carregar dados de treinamento
-        entradasTreinamento = lines.slice(1).map(line => {
-            const row = line.split(',');
-            const valores = row.slice(0, -1).map(valor => parseFloat(valor.trim()));
-            
-            // Validar se todos os valores são números
-            if (valores.some(isNaN)) {
-                throw new Error("Dados de entrada inválidos: todos os valores devem ser numéricos");
+        // Primeira linha: Cabeçalho
+        const header = lines[0].split(',');
+        const numParameters = header.length - 1;
+
+        // Contar e mapear classes únicas
+        const classesSet = new Set();
+        for (let i = 1; i < lines.length; i++) {
+            const row = lines[i].split(',');
+            if (row.length !== header.length) {
+                throw new Error(`Linha ${i + 1} tem número incorreto de colunas`);
             }
-            
+            const classValue = row[row.length - 1].trim();
+            classesSet.add(classValue);
+        }
+        
+        classesUnicas = Array.from(classesSet);
+        
+        // Carregar dados de treinamento
+        entradasTreinamento = lines.slice(1).map((line, idx) => {
+            const row = line.split(',');
+            const valores = row.slice(0, -1).map(valor => {
+                const num = parseFloat(valor.trim());
+                if (isNaN(num)) {
+                    throw new Error(`Valor inválido na linha ${idx + 2}: ${valor}`);
+                }
+                return num;
+            });
             return valores;
         });
 
-        // Converter classes para one-hot encoding
+        // Converter classes para índices
         saidasEsperadas = lines.slice(1).map(line => {
             const classe = line.split(',').pop().trim();
             return classesUnicas.indexOf(classe);
         });
 
-        redeConfigurada = true;
+        // Configurar camada de entrada inicial
+        camadaDeEntrada = criarCamadaDeNeuronios(numParameters, 'linear');
+        
+        alert(`Arquivo processado com sucesso!\n${numParameters} parâmetros e ${classesUnicas.length} classes diferentes.`);
+        
+        // Habilitar campos do formulário
+        document.getElementById('qtde-camada-oculto').disabled = false;
+        document.getElementById('taxa-de-aprendizado').disabled = false;
+        document.getElementById('qtde-iteracoes').disabled = false;
+        document.getElementById('erro-min').disabled = false;
+        document.querySelector('button[type="submit"]').disabled = false;
+
     } catch (error) {
-        alert(`Erro ao configurar a rede: ${error.message}`);
+        alert(`Erro ao processar o arquivo: ${error.message}`);
         redeConfigurada = false;
+        // Desabilitar campos do formulário
+        document.getElementById('qtde-camada-oculto').disabled = true;
+        document.getElementById('taxa-de-aprendizado').disabled = true;
+        document.getElementById('qtde-iteracoes').disabled = true;
+        document.getElementById('erro-min').disabled = true;
+        document.querySelector('button[type="submit"]').disabled = true;
     }
 }
 
@@ -316,10 +324,173 @@ function updateStatus(message) {
     trainingInfo.textContent = message;
 }
 
-function treinarRede() {
-    if (!redeConfigurada || !entradasTreinamento.length || !saidasEsperadas.length) {
-        alert("A rede neural não está configurada corretamente ou não há dados de treinamento.");
-        return;
+// Função para inicializar o gráfico
+function initializeChart() {
+    const options = {
+        series: [{
+            name: 'Erro Global',
+            data: []
+        }],
+        chart: {
+            type: 'area',
+            height: '100%',
+            width: '100%',
+            animations: {
+                enabled: true,
+                easing: 'easeinout',
+                speed: 800,
+                animateGradually: {
+                    enabled: true,
+                    delay: 150
+                },
+                dynamicAnimation: {
+                    enabled: true,
+                    speed: 350
+                }
+            },
+            toolbar: {
+                show: true,
+                tools: {
+                    download: true,
+                    selection: true,
+                    zoom: true,
+                    zoomin: true,
+                    zoomout: true,
+                    pan: true,
+                    reset: true
+                }
+            },
+            background: '#fff'
+        },
+        dataLabels: {
+            enabled: false
+        },
+        stroke: {
+            curve: 'smooth',
+            width: 2
+        },
+        fill: {
+            type: 'gradient',
+            gradient: {
+                shadeIntensity: 1,
+                opacityFrom: 0.7,
+                opacityTo: 0.3,
+                stops: [0, 90, 100]
+            }
+        },
+        colors: ['#3498db'],
+        title: {
+            text: 'Evolução do Erro Global',
+            align: 'center',
+            style: {
+                fontSize: '18px',
+                fontWeight: 'bold',
+                color: '#2c3e50'
+            }
+        },
+        xaxis: {
+            type: 'numeric',
+            title: {
+                text: 'Iterações',
+                style: {
+                    fontSize: '14px',
+                    fontWeight: 600
+                }
+            },
+            labels: {
+                formatter: function(value) {
+                    return Math.round(value);
+                }
+            }
+        },
+        yaxis: {
+            title: {
+                text: 'Erro Global',
+                style: {
+                    fontSize: '14px',
+                    fontWeight: 600
+                }
+            },
+            labels: {
+                formatter: function(value) {
+                    return value.toFixed(6);
+                }
+            },
+            min: 0
+        },
+        tooltip: {
+            shared: false,
+            y: {
+                formatter: function(value) {
+                    return value.toFixed(6);
+                }
+            }
+        },
+        theme: {
+            mode: 'light',
+            palette: 'palette1'
+        }
+    };
+
+    if (chart) {
+        chart.destroy();
+    }
+
+    chart = new ApexCharts(document.querySelector("#errorChart"), options);
+    chart.render();
+}
+
+// Função para atualizar as estatísticas
+function updateStats(iteration, error, maxIterations) {
+    const currentTime = new Date();
+    const elapsedTime = startTime ? Math.floor((currentTime - startTime) / 1000) : 0;
+    const minutes = Math.floor(elapsedTime / 60);
+    const seconds = elapsedTime % 60;
+
+    document.getElementById('current-iteration').textContent = iteration;
+    document.getElementById('current-error').textContent = error.toFixed(6);
+    
+    if (errorHistory.length > 0 && error < errorHistory[errorHistory.length - 1]) {
+        document.getElementById('current-error').classList.add('decreasing');
+        setTimeout(() => document.getElementById('current-error').classList.remove('decreasing'), 1000);
+    }
+    
+    // Calcular progresso baseado no critério selecionado
+    let progress;
+    if (progressType === 'iteracoes') {
+        progress = Math.min((iteration / maxIterations) * 100, 100);
+    } else {
+        const minError = parseFloat(document.getElementById('erro-min').value);
+        const initialError = errorHistory[0] || error;
+        const errorRange = initialError - minError;
+        const currentErrorProgress = initialError - error;
+        progress = Math.min((currentErrorProgress / errorRange) * 100, 100);
+    }
+    
+    // Atualizar barra de progresso
+    document.getElementById('progress-bar').style.width = `${progress}%`;
+    document.getElementById('progress-rate').textContent = `${Math.round(progress)}%`;
+    
+    document.getElementById('elapsed-time').textContent = 
+        `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+    // Atualizar gráfico
+    errorHistory.push(error);
+    
+    const chartData = errorHistory.map((err, idx) => ({
+        x: idx,
+        y: err
+    }));
+
+    chart.updateSeries([{
+        data: chartData
+    }]);
+}
+
+// Modificar a função treinarRede
+async function treinarRede() {
+    if (!redeConfigurada) {
+        throw new Error("A rede neural não está configurada corretamente.");
     }
 
     const learningRate = parseFloat(document.getElementById('taxa-de-aprendizado').value);
@@ -329,83 +500,104 @@ function treinarRede() {
 
     let iteration = 0;
     let globalError;
-
-    updateStatus('Iniciando treinamento...');
+    errorHistory = [];
     
-    console.log('Iniciando treinamento...');
-    console.log(`Total de exemplos: ${entradasTreinamento.length}`);
-    console.log(`Número de classes: ${classesUnicas.length}`);
-    console.log(`Critério de parada: ${stopCriterion}`);
-    console.log('-------------------');
+    // Inicializar visualização
+    document.getElementById('training-visualization').style.display = 'block';
+    startTime = new Date();
+    initializeChart();
 
-    do {
-        globalError = 0;
+    try {
+        do {
+            globalError = 0;
 
-        entradasTreinamento.forEach((inputs, index) => {
-            // Forward pass
-            camadaDeEntrada.forEach((neuronio, i) => {
-                neuronio.saida = inputs[i];
-            });
+            entradasTreinamento.forEach((inputs, index) => {
+                // Forward pass
+                camadaDeEntrada.forEach((neuronio, i) => {
+                    neuronio.saida = inputs[i];
+                });
 
-            camadaOculta.forEach(neuronio => {
-                neuronio.calcularSaida();
-            });
+                camadaOculta.forEach(neuronio => {
+                    neuronio.calcularSaida();
+                });
 
-            camadaDeSaida.forEach(neuronio => {
-                neuronio.calcularSaida();
-            });
+                camadaDeSaida.forEach(neuronio => {
+                    neuronio.calcularSaida();
+                });
 
-            // Calcular erro para camada de saída e acumular erro global
-            camadaDeSaida.forEach((neuronio, i) => {
-                const esperado = (i === saidasEsperadas[index]) ? 1 : 0;
-                neuronio.recalcularErro(esperado);
-                globalError += Math.pow(esperado - neuronio.saida, 2);
-            });
+                // Calcular erro para camada de saída
+                let erroExemplo = 0;
+                camadaDeSaida.forEach((neuronio, i) => {
+                    const esperado = (i === saidasEsperadas[index]) ? 1 : 0;
+                    neuronio.recalcularErro(esperado);
+                    // Calcular o erro quadrático para este neurônio de saída
+                    erroExemplo += Math.pow(esperado - neuronio.saida, 2);
+                });
+                // Aplicar a fórmula do erro da rede: (1/2) * soma dos erros quadráticos
+                globalError += (1/2) * erroExemplo;
 
-            // Backpropagation para camada oculta
-            camadaOculta.forEach(neuronio => {
-                neuronio.recalcularErro();
-            });
+                // Backpropagation para camada oculta
+                camadaOculta.forEach(neuronio => {
+                    neuronio.recalcularErro();
+                });
 
-            // Ajustar pesos - primeiro da camada oculta
-            camadaOculta.forEach(neuronio => {
-                neuronio.entradas.forEach(ligacao => {
-                    const delta = learningRate * neuronio.erro * ligacao.neuronioOrigem.saida;
-                    ligacao.peso += delta;
+                // Ajustar pesos - primeiro da camada oculta
+                camadaOculta.forEach(neuronio => {
+                    neuronio.entradas.forEach(ligacao => {
+                        const delta = learningRate * neuronio.erro * ligacao.neuronioOrigem.saida;
+                        ligacao.peso += delta;
+                    });
+                });
+
+                // Depois ajustar pesos da camada de saída
+                camadaDeSaida.forEach(neuronio => {
+                    neuronio.entradas.forEach(ligacao => {
+                        const delta = learningRate * neuronio.erro * ligacao.neuronioOrigem.saida;
+                        ligacao.peso += delta;
+                    });
                 });
             });
 
-            // Depois ajustar pesos da camada de saída
-            camadaDeSaida.forEach(neuronio => {
-                neuronio.entradas.forEach(ligacao => {
-                    const delta = learningRate * neuronio.erro * ligacao.neuronioOrigem.saida;
-                    ligacao.peso += delta;
-                });
-            });
-        });
+            // Calcular erro médio para esta época (dividir pelo número de exemplos)
+            globalError = globalError / entradasTreinamento.length;
+            
+            // Atualizar a cada 10 iterações
+            if (iteration % 10 === 0) {
+                updateStats(iteration, globalError, maxIterations);
+                await new Promise(resolve => setTimeout(resolve, 0));
+            }
 
-        // Calcular erro médio para esta época
-        globalError = globalError / (2 * entradasTreinamento.length);
-        
-        if (iteration % 10 === 0) {
-            updateStatus(`Iteração ${iteration + 1} - Erro global: ${globalError.toFixed(6)}`);
-        }
+            iteration++;
 
-        iteration++;
+            // Critério de parada
+            if (stopCriterion === 'iteracoes' && iteration >= maxIterations) {
+                break;
+            } else if (stopCriterion === 'erroMinimo' && globalError <= minError) {
+                break;
+            }
 
-        // Verifica o critério de parada escolhido
-        if (stopCriterion === 'iteracoes') {
-            if (iteration >= maxIterations) break;
-        } else if (stopCriterion === 'erroMinimo') {
-            if (globalError <= minError) break;
-        }
+        } while (true);
 
-    } while (true);
+        // Atualização final
+        updateStats(iteration, globalError, maxIterations);
 
-    console.log('-------------------');
-    console.log(`Treinamento finalizado!`);
-    console.log(`Total de iterações: ${iteration}`);
-    console.log(`Erro global final: ${globalError.toFixed(6)}`);
+        return {
+            iterations: iteration,
+            finalError: globalError
+        };
 
-    alert(`Treinamento finalizado!\nIterações: ${iteration}\nErro global: ${globalError.toFixed(6)}`);
+    } catch (error) {
+        console.error('Erro durante o treinamento:', error);
+        throw new Error(`Erro durante o treinamento: ${error.message}`);
+    }
 }
+
+// Adicionar inicialização dos campos desabilitados
+document.addEventListener('DOMContentLoaded', () => {
+    // Desabilitar campos até que um arquivo seja carregado
+    document.getElementById('qtde-camada-oculto').disabled = true;
+    document.getElementById('taxa-de-aprendizado').disabled = true;
+    document.getElementById('qtde-iteracoes').disabled = true;
+    document.getElementById('erro-min').disabled = true;
+    document.querySelector('button[type="submit"]').disabled = true;
+});

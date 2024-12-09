@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rede Neural Multicamadas</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 </head>
 
 <body>
@@ -99,6 +100,38 @@
         <div id="status" class="status">
             <h3>Status do Treinamento</h3>
             <p id="training-info"></p>
+        </div>
+
+        <div id="training-visualization" class="visualization-container" style="display: none;">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h4>Iterações</h4>
+                    <p id="current-iteration">0</p>
+                </div>
+                <div class="stat-card">
+                    <h4>Erro Global</h4>
+                    <p id="current-error">0.000000</p>
+                </div>
+                <div class="stat-card">
+                    <h4>Taxa de Progresso</h4>
+                    <p id="progress-rate">0%</p>
+                </div>
+                <div class="stat-card">
+                    <h4>Tempo Decorrido</h4>
+                    <p id="elapsed-time">00:00</p>
+                </div>
+            </div>
+            
+            <div class="progress-container">
+                <h4 id="progress-label">Progresso das Iterações</h4>
+                <div class="progress">
+                    <div id="progress-bar" class="progress-bar"></div>
+                </div>
+            </div>
+            
+            <div class="chart-container">
+                <div id="errorChart"></div>
+            </div>
         </div>
     </div>
 
