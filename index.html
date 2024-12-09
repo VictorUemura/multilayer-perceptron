@@ -1,55 +1,107 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multicamadas</title>
+    <title>Rede Neural Multicamadas</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
-    <label for="arquivo-csv">Carregar arquivo CSV:</label>
-    <input type="file" required>
+    <div class="container">
+        <h1>Rede Neural Multicamadas</h1>
+        
+        <form id="neural-network-form">
+            <!-- Etapa 1: Carregar Dados -->
+            <div class="step">
+                <div class="step-header">
+                    <div class="step-number">1</div>
+                    <div class="step-title">Carregar Dados de Treinamento</div>
+                </div>
+                <div class="file-upload">
+                    <label for="arquivo-csv">Selecione ou arraste o arquivo CSV</label>
+                    <input type="file" id="arquivo-csv" accept=".csv" required>
+                </div>
+            </div>
 
-    <label for="qtde-camada-oculto">Quantidade de neurônios na camada oculta:</label>
-    <input type="number" id="qtde-camada-oculto" name="qtde-camada-oculto" min="1" required>
-    <br><br>
+            <!-- Etapa 2: Configuração da Rede -->
+            <div class="step">
+                <div class="step-header">
+                    <div class="step-number">2</div>
+                    <div class="step-title">Configuração da Rede Neural</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="qtde-camada-oculto">Quantidade de neurônios na camada oculta:</label>
+                    <input type="number" id="qtde-camada-oculto" min="1" required>
+                </div>
 
-    <!-- Valor do erro mínimo -->
-    <label for="erro-min">Valor do erro mínimo (0 a 1):</label>
-    <input type="number" id="erro-min" name="erro-min" min="0" max="1" step="any" required>
-    <br><br>
+                <div class="form-group">
+                    <label>Função de ativação:</label>
+                    <div class="radio-group">
+                        <div class="radio-option">
+                            <input type="radio" id="linear" name="funcao-ativacao" value="linear" required>
+                            <label for="linear">Linear</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="logistica" name="funcao-ativacao" value="logistica">
+                            <label for="logistica">Logística</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="tangente-hiperbolica" name="funcao-ativacao" value="tangentehiperbolica">
+                            <label for="tangente-hiperbolica">Tangente Hiperbólica</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-    <!-- Número de iterações -->
-    <label for="qtde-iteracoes">Número de iterações:</label>
-    <input type="number" id="qtde-iteracoes" name="qtde-iteracoes" min="1" required>
-    <br><br>
+            <!-- Etapa 3: Parâmetros de Treinamento -->
+            <div class="step">
+                <div class="step-header">
+                    <div class="step-number">3</div>
+                    <div class="step-title">Parâmetros de Treinamento</div>
+                </div>
 
-    <!-- Radio para escolher entre número de iterações ou erro mínimo -->
-    <label>Critério de parada:</label>
-    <input type="radio" id="tipo-de-treino" name="criterio-parada" value="iteracoes" required>
-    <label for="tipo-de-treino">Número de iterações</label>
-    <input type="radio" id="erro-minimo" name="criterio-parada" value="erroMinimo">
-    <label for="erro-minimo">Erro mínimo</label>
-    <br><br>
+                <div class="form-group">
+                    <label for="taxa-de-aprendizado">Taxa de aprendizado (0 a 1):</label>
+                    <input type="number" id="taxa-de-aprendizado" min="0" max="1" step="0.01" required>
+                </div>
 
-    <!-- Valor da taxa de aprendizado -->
-    <label for="taxa-de-aprendizado">Valor da taxa de aprendizado (0 a 1):</label>
-    <input type="number" id="taxa-de-aprendizado" name="taxa-de-aprendizado" min="0" max="1" step="any" required>
-    <br><br>
+                <div class="form-group">
+                    <label>Critério de parada:</label>
+                    <div class="radio-group">
+                        <div class="radio-option">
+                            <input type="radio" id="tipo-de-treino" name="criterio-parada" value="iteracoes" required>
+                            <label for="tipo-de-treino">Número de iterações</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="erro-minimo" name="criterio-parada" value="erroMinimo">
+                            <label for="erro-minimo">Erro mínimo</label>
+                        </div>
+                    </div>
+                </div>
 
-    <!-- Radio para escolher a função de transferência -->
-    <label>Função de ativação:</label>
-    <input type="radio" id="linear" name="funcao-ativacao" value="linear" required>
-    <label for="linear'">Linear</label>
-    <input type="radio" id="logistica" name="funcao-ativacao" value="logistica">
-    <label for="logistica">Logística</label>
-    <input type="radio" id="tangente-hiperbolica" name="funcao-ativacao" value="tangentehiperbolica">
-    <label for="tangente-hiperbolica">Hiperbólica</label>
-    <br><br>
+                <div class="form-group">
+                    <label for="qtde-iteracoes">Número de iterações:</label>
+                    <input type="number" id="qtde-iteracoes" min="1" required>
+                </div>
 
-    <!-- Submit button -->
-    <button type="submit">Enviar Configuração</button>
+                <div class="form-group">
+                    <label for="erro-min">Erro mínimo (0 a 1):</label>
+                    <input type="number" id="erro-min" min="0" max="1" step="0.0001" required>
+                </div>
+            </div>
+
+            <button type="submit">Iniciar Treinamento</button>
+        </form>
+
+        <div id="status" class="status">
+            <h3>Status do Treinamento</h3>
+            <p id="training-info"></p>
+        </div>
+    </div>
+
     <script src="./script.js"></script>
 </body>
 
