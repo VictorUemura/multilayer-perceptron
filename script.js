@@ -55,6 +55,55 @@ class FuncoesDeAtivacao {
     }
 }
 
+// Manipulador para o evento de carregamento do arquivo
+const fileInput = document.querySelector('input[type="file"]');
+
+fileInput.addEventListener('change', async (event) => {
+    const file = event.target.files[0];
+
+    if (!file || !file.name.endsWith('.csv')) {
+        alert("Por favor, selecione um arquivo CSV válido.");
+        return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+        const content = e.target.result;
+        processCSV(content);
+    };
+
+    reader.readAsText(file);
+});
+
+function processCSV(content) {
+    const lines = content.split('\n').filter(line => line.trim() !== ''); // Separar linhas e remover linhas vazias
+
+    if (lines.length < 2) {
+        alert("O arquivo CSV deve conter ao menos um cabeçalho e uma linha de dados.");
+        return;
+    }
+
+    // Primeira linha: Cabeçalho
+    const header = lines[0].split(',');
+    const numParameters = header.length - 1; // Excluir a coluna de classe
+
+    // Contar classes únicas
+    const classes = new Set();
+    for (let i = 1; i < lines.length; i++) {
+        const row = lines[i].split(',');
+        const classValue = row[row.length - 1].trim(); // Última coluna
+        classes.add(classValue);
+    }
+
+    alert(`O arquivo contém ${numParameters} parâmetros e ${classes.size} classes diferentes.`);
+
+    console.log({
+        parameters: header.slice(0, -1),
+        classes: Array.from(classes),
+    });
+}
+
 // recuperacao dos dados
 document.querySelector('button[type="submit"]').addEventListener('click', (event) => {
     event.preventDefault(); // Evita o envio padrão do formulário
